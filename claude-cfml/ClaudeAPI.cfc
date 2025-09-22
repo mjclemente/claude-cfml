@@ -17,20 +17,15 @@ component displayname="ClaudeAPI" hint="ColdFusion component for interacting wit
         numeric temperature = 1,
         string systemPrompt = ""
     ) {
-        var requestBody = buildMessageRequest(
+        var messages = [createMessage("user", arguments.message)];
+        
+        return sendConversation(
+            messages = messages,
             model = arguments.model,
             maxTokens = arguments.maxTokens,
             temperature = arguments.temperature,
             systemPrompt = arguments.systemPrompt
         );
-        
-        // Build messages array
-        var messageStruct = {};
-        messageStruct["role"] = "user";
-        messageStruct["content"] = arguments.message;
-        requestBody["messages"] = [messageStruct];
-        
-        return makeHttpRequest(endpoint = "/messages", method = "POST", body = requestBody);
     }
 
     public struct function sendConversation(
@@ -75,6 +70,13 @@ component displayname="ClaudeAPI" hint="ColdFusion component for interacting wit
         }
         
         return makeHttpRequest(endpoint = endpoint, method = "GET");
+    }
+
+    public struct function createMessage(required string role, required string content) {
+        var messageStruct = {};
+        messageStruct["role"] = arguments.role;
+        messageStruct["content"] = arguments.content;
+        return messageStruct;
     }
 
 

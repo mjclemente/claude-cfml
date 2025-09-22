@@ -1,7 +1,7 @@
 {
     "name": "Claude CFML",
     "slug": "claude-cfml",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "type": "modules",
     "shortDescription": "A CFML wrapper for the Claude/Anthropic API",
     "description": "A ColdFusion component for interacting with Claude/Anthropic API, supporting message sending, conversations, and model management with comprehensive error handling.",
@@ -17,7 +17,7 @@
     },
     "bugs": "https://github.com/mjclemente/claude-cfml/issues",
     "changelogURL": "",
-    "location": "mjclemente/claude-cfml#v1.2.1",
+    "location": "mjclemente/claude-cfml#v1.2.2",
     "keywords": [
         "claude",
         "anthropic",

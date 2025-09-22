@@ -206,14 +206,21 @@
         
         <h3>Example usage in your CFML code:</h3>
         <pre style="background-color: #f0f0f0; padding: 10px; border-radius: 4px;">
+// Simple message
 claudeAPI = createObject("component", "claude-cfml.ClaudeAPI").init("your-api-key-here");
 result = claudeAPI.sendMessage("Hello, Claude!");
 
 if (result.success) {
     writeOutput(result.response);
-} else {
-    writeOutput("Error: " & result.error);
 }
+
+// Conversation with assistant role for completion
+messages = [
+    claudeAPI.createMessage("user", "Write a haiku about programming"),
+    claudeAPI.createMessage("assistant", "Code flows like water,")
+];
+result = claudeAPI.sendConversation(messages);
+// Claude will complete the haiku from where the assistant message left off
         </pre>
     </div>
 </body>
