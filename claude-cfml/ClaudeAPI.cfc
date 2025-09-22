@@ -3,7 +3,7 @@ component displayname="ClaudeAPI" hint="ColdFusion component for interacting wit
     public ClaudeAPI function init(string apiKey = "", string baseURL = "https://api.anthropic.com/v1") {
         variables.apiKey = resolveApiKey(arguments.apiKey);
         variables.baseURL = arguments.baseURL;
-        variables.defaultModel = "claude-3-5-sonnet-20241022";
+        variables.defaultModel = "claude-sonnet-4-20250514";
         variables.anthropicVersion = "2023-06-01";
         variables.timeout = 30;
         
@@ -30,7 +30,7 @@ component displayname="ClaudeAPI" hint="ColdFusion component for interacting wit
         messageStruct["content"] = arguments.message;
         requestBody["messages"] = [messageStruct];
         
-        return makeApiRequest(endpoint = "/messages", body = requestBody);
+        return makeHttpRequest(endpoint = "/messages", method = "POST", body = requestBody);
     }
 
     public struct function sendConversation(
@@ -49,18 +49,34 @@ component displayname="ClaudeAPI" hint="ColdFusion component for interacting wit
         
         requestBody["messages"] = arguments.messages;
         
-        return makeApiRequest(endpoint = "/messages", body = requestBody);
+        return makeHttpRequest(endpoint = "/messages", method = "POST", body = requestBody);
     }
 
-    public array function getModels() {
-        return [
-            "claude-3-5-sonnet-20241022",
-            "claude-3-5-haiku-20241022",
-            "claude-3-opus-20240229",
-            "claude-3-sonnet-20240229",
-            "claude-3-haiku-20240307"
-        ];
+    public struct function listModels(
+        string beforeId = "",
+        string afterId = "",
+        numeric limit = 20
+    ) {
+        var queryParams = [];
+        
+        if (len(trim(arguments.beforeId))) {
+            arrayAppend(queryParams, "before_id=" & urlEncodedFormat(arguments.beforeId));
+        }
+        if (len(trim(arguments.afterId))) {
+            arrayAppend(queryParams, "after_id=" & urlEncodedFormat(arguments.afterId));
+        }
+        if (arguments.limit != 20) {
+            arrayAppend(queryParams, "limit=" & arguments.limit);
+        }
+        
+        var endpoint = "/models";
+        if (arrayLen(queryParams)) {
+            endpoint &= "?" & arrayToList(queryParams, "&");
+        }
+        
+        return makeHttpRequest(endpoint = endpoint, method = "GET");
     }
+
 
     // PRIVATE METHODS
 
@@ -118,27 +134,33 @@ component displayname="ClaudeAPI" hint="ColdFusion component for interacting wit
         return requestBody;
     }
 
-    private struct function makeApiRequest(required string endpoint, required struct body) {
+    private struct function makeHttpRequest(
+        required string endpoint,
+        required string method,
+        struct body = {}
+    ) {
         var result = {};
         
         try {
             var requestUrl = variables.baseURL & arguments.endpoint;
-            var requestBody = serializeJSON(arguments.body);
             var httpResult = "";
             
             cfhttp(
                 url = requestUrl,
-                method = "POST",
+                method = arguments.method,
                 timeout = variables.timeout,
                 result = "httpResult"
             ) {
-                cfhttpparam(type = "header", name = "Content-Type", value = "application/json");
                 cfhttpparam(type = "header", name = "x-api-key", value = variables.apiKey);
                 cfhttpparam(type = "header", name = "anthropic-version", value = variables.anthropicVersion);
-                cfhttpparam(type = "body", value = requestBody);
+                
+                if (arguments.method == "POST" && !structIsEmpty(arguments.body)) {
+                    cfhttpparam(type = "header", name = "Content-Type", value = "application/json");
+                    cfhttpparam(type = "body", value = serializeJSON(arguments.body));
+                }
             }
             
-            result = processApiResponse(httpResult);
+            result = processHttpResponse(httpResult, arguments.method);
             
         } catch (any e) {
             result["success"] = false;
@@ -149,16 +171,27 @@ component displayname="ClaudeAPI" hint="ColdFusion component for interacting wit
         return result;
     }
 
-    private struct function processApiResponse(required struct httpResult) {
+    private struct function processHttpResponse(required struct httpResult, required string method) {
         var result = {};
         
         if (arguments.httpResult.statusCode == "200 OK") {
             var responseData = deserializeJSON(arguments.httpResult.fileContent);
             result["success"] = true;
-            result["response"] = responseData.content[1].text;
-            result["usage"] = responseData.usage;
-            result["model"] = responseData.model;
             result["rawResponse"] = responseData;
+            
+            // Handle different response formats based on endpoint/method
+            if (arguments.method == "POST") {
+                // Messages API response format
+                result["response"] = responseData.content[1].text;
+                result["usage"] = responseData.usage;
+                result["model"] = responseData.model;
+            } else if (arguments.method == "GET") {
+                // Models list API response format
+                result["data"] = responseData.data;
+                result["hasMore"] = responseData.has_more;
+                result["firstId"] = responseData.first_id;
+                result["lastId"] = responseData.last_id;
+            }
         } else {
             result["success"] = false;
             result["error"] = "HTTP Error: " & arguments.httpResult.statusCode;

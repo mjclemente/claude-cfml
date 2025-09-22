@@ -17,13 +17,23 @@
         .success { background-color: #e6ffe6; border: 1px solid #99ff99; }
         .usage { font-size: 0.9em; color: #666; margin-top: 10px; }
     </style>
+    <script>
+        function validateForm(buttonType) {
+            var messageField = document.getElementById('message');
+            if (buttonType === 'submit' && !messageField.value.trim()) {
+                alert('Please enter a message to send to Claude.');
+                return false;
+            }
+            return true;
+        }
+    </script>
 </head>
 <body>
     <h1>Claude API Test Interface</h1>
 
     <cfparam name="form.apiKey" default="#structKeyExists(server.system.environment, 'ANTHROPIC_API_KEY') ? server.system.environment.ANTHROPIC_API_KEY : ''#">
     <cfparam name="form.message" default="">
-    <cfparam name="form.model" default="claude-3-5-sonnet-20241022">
+    <cfparam name="form.model" default="claude-sonnet-4-20250514">
     <cfparam name="form.maxTokens" default="1024">
     <cfparam name="form.temperature" default="1">
     <cfparam name="form.systemPrompt" default="">
@@ -37,11 +47,25 @@
         <div class="form-group">
             <label for="model">Model:</label>
             <select id="model" name="model">
-                <option value="claude-3-5-sonnet-20241022" <cfif form.model eq "claude-3-5-sonnet-20241022">selected</cfif>>Claude 3.5 Sonnet</option>
-                <option value="claude-3-5-haiku-20241022" <cfif form.model eq "claude-3-5-haiku-20241022">selected</cfif>>Claude 3.5 Haiku</option>
-                <option value="claude-3-opus-20240229" <cfif form.model eq "claude-3-opus-20240229">selected</cfif>>Claude 3 Opus</option>
-                <option value="claude-3-sonnet-20240229" <cfif form.model eq "claude-3-sonnet-20240229">selected</cfif>>Claude 3 Sonnet</option>
-                <option value="claude-3-haiku-20240307" <cfif form.model eq "claude-3-haiku-20240307">selected</cfif>>Claude 3 Haiku</option>
+                <cfif len(form.apiKey)>
+                    <cftry>
+                        <cfset claudeAPI = createObject("component", "claude-cfml.ClaudeAPI").init(form.apiKey)>
+                        <cfset modelsResult = claudeAPI.listModels()>
+                        <cfif modelsResult.success>
+                            <cfloop array="#modelsResult.data#" index="model">
+                                <option value="<cfoutput>#model.id#</cfoutput>" <cfif form.model eq model.id>selected</cfif>><cfoutput>#model.display_name#</cfoutput></option>
+                            </cfloop>
+                        <cfelse>
+                            <option value="claude-sonnet-4-20250514" <cfif form.model eq "claude-sonnet-4-20250514">selected</cfif>>Claude Sonnet 4 (fallback)</option>
+                        </cfif>
+                        <cfcatch type="any">
+                            <option value="claude-sonnet-4-20250514" <cfif form.model eq "claude-sonnet-4-20250514">selected</cfif>>Claude Sonnet 4 (fallback)</option>
+                        </cfcatch>
+                    </cftry>
+                <cfelse>
+                    <option value="claude-sonnet-4-20250514" <cfif form.model eq "claude-sonnet-4-20250514">selected</cfif>>Claude Sonnet 4</option>
+                    <option disabled>Enter API key to load available models</option>
+                </cfif>
             </select>
         </div>
 
@@ -52,7 +76,7 @@
 
         <div class="form-group">
             <label for="message">Message:</label>
-            <textarea id="message" name="message" placeholder="Enter your message to Claude" required><cfoutput>#form.message#</cfoutput></textarea>
+            <textarea id="message" name="message" placeholder="Enter your message to Claude"><cfoutput>#form.message#</cfoutput></textarea>
         </div>
 
         <div class="form-group">
@@ -65,10 +89,61 @@
             <input type="number" id="temperature" name="temperature" value="<cfoutput>#form.temperature#</cfoutput>" min="0" max="2" step="0.1">
         </div>
 
-        <button type="submit">Send Message</button>
+        <button type="submit" name="submit" onclick="return validateForm('submit')">Send Message</button>
+        <button type="submit" name="listModels" onclick="return validateForm('listModels')" style="margin-left: 10px; background-color: #28a745;">List Available Models</button>
     </form>
 
-    <cfif structKeyExists(form, "submit") OR len(form.message)>
+    <cfif structKeyExists(form, "listModels")>
+        <cfif len(form.apiKey)>
+            <cftry>
+                <cfset claudeAPI = createObject("component", "claude-cfml.ClaudeAPI").init(form.apiKey)>
+                <cfset result = claudeAPI.listModels()>
+
+                <cfif result.success>
+                    <div class="response success">
+                        <h3>Available Models:</h3>
+                        <cfloop array="#result.data#" index="model">
+                            <div style="margin-bottom: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
+                                <strong>ID:</strong> <cfoutput>#model.id#</cfoutput><br>
+                                <strong>Display Name:</strong> <cfoutput>#model.display_name#</cfoutput><br>
+                                <strong>Type:</strong> <cfoutput>#model.type#</cfoutput><br>
+                                <strong>Created:</strong> <cfoutput>#model.created_at#</cfoutput>
+                            </div>
+                        </cfloop>
+                        <div class="usage">
+                            <strong>Pagination:</strong> 
+                            Has more: <cfoutput>#result.hasMore#</cfoutput>
+                            <cfif len(result.firstId)>, First ID: <cfoutput>#result.firstId#</cfoutput></cfif>
+                            <cfif len(result.lastId)>, Last ID: <cfoutput>#result.lastId#</cfoutput></cfif>
+                        </div>
+                    </div>
+                <cfelse>
+                    <div class="response error">
+                        <h3>Error:</h3>
+                        <div><cfoutput>#result.error#</cfoutput></div>
+                        <cfif structKeyExists(result, "errorDetail") AND len(result.errorDetail)>
+                            <div style="margin-top: 10px;"><strong>Details:</strong><br>
+                            <cfoutput>#result.errorDetail#</cfoutput></div>
+                        </cfif>
+                    </div>
+                </cfif>
+
+                <cfcatch type="any">
+                    <div class="response error">
+                        <h3>Error:</h3>
+                        <div>Exception: <cfoutput>#cfcatch.message#</cfoutput></div>
+                        <div style="margin-top: 10px;"><strong>Details:</strong><br>
+                        <cfoutput>#cfcatch.detail#</cfoutput></div>
+                    </div>
+                </cfcatch>
+            </cftry>
+        <cfelse>
+            <div class="response error">
+                <h3>Error:</h3>
+                <div>Please provide an API key to list models.</div>
+            </div>
+        </cfif>
+    <cfelseif structKeyExists(form, "submit") OR len(form.message)>
         <cfif len(form.apiKey) AND len(form.message)>
             <cftry>
                 <cfset claudeAPI = createObject("component", "claude-cfml.ClaudeAPI").init(form.apiKey)>
