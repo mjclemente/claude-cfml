@@ -1,0 +1,47 @@
+{
+    "name": "Claude CFML",
+    "slug": "claude-cfml",
+    "version": "1.2.0",
+    "type": "modules",
+    "shortDescription": "A CFML wrapper for the Claude/Anthropic API",
+    "description": "A ColdFusion component for interacting with Claude/Anthropic API, supporting message sending, conversations, and model management with comprehensive error handling.",
+    "author": "Matthew Clemente <mjclemente@gmail.com>",
+    "contributors": [],
+    "private": false,
+    "license": "",
+    "homepage": "https://github.com/mjclemente/claude-cfml",
+    "documentation": "https://github.com/mjclemente/claude-cfml/blob/main/README.md",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/mjclemente/claude-cfml.git"
+    },
+    "bugs": "https://github.com/mjclemente/claude-cfml/issues",
+    "changelogURL": "",
+    "location": "mjclemente/claude-cfml#v1.2.0",
+    "keywords": [
+        "claude",
+        "anthropic",
+        "ai",
+        "api",
+        "cfml",
+        "coldfusion",
+        "lucee",
+        "llm"
+    ],
+    "dependencies": {},
+    "devDependencies": {},
+    "engines": [],
+    "defaultEngine": "",
+    "scripts": {},
+    "ignore": [
+        ".env",
+        ".git",
+        ".gitignore",
+        "playground/**",
+        "CLAUDE.md"
+    ],
+    "testbox": {},
+    "installPaths": {},
+    "createPackageDirectory": true,
+    "packageDirectory": ""
+}
